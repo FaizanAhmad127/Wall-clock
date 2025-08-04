@@ -1,16 +1,17 @@
-name: manual_clock
-description: "A new Flutter project."
-publish_to: 'none'
-version: 0.1.0
+name: analog_wall_clock
+description: "An elegant analog wall clock with alarm functionality."
+publish_to: "none"
+version: 1.0.0
 
 environment:
-  sdk: '>=3.2.3 <4.0.0'
+  sdk: ">=3.2.3 <4.0.0"
 
 dependencies:
   audioplayers: ^5.2.1
   flutter:
     sdk: flutter
-    
+  shared_preferences: ^2.5.3
+  flutter_launcher_icons: ^0.14.3
 
 dev_dependencies:
   flutter_test:
@@ -21,3 +22,13 @@ flutter:
   uses-material-design: true
   assets:
     - assets/tick.mp3
+    - assets/AlarmShort.mp3
+    - assets/AirRaid.mp3
+    - assets/BurglarAlram.mp3
+    - assets/TicTac.mp3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/appIcon.png"
+  min_sdk_android: 21

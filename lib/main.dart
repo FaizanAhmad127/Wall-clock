@@ -1,326 +1,474 @@
-import 'dart:async';
-
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'dart:math';
+import 'core/locator/service_locator.dart';
+import 'features/clock/widgets/clock_screen.dart';
 
-void main() {
-  runApp(const MainApp());
+/// Application entry point
+void main() async {
+  // Ensure Flutter bindings are initialized first
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize services after bindings are ready
+  await _initializeApp();
+
+  runApp(const ClockApp());
 }
 
-class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+/// Initialize application services and dependencies
+Future<void> _initializeApp() async {
+  final serviceLocator = ServiceLocator.instance;
+  await serviceLocator.setupServices();
+}
+
+/// Root application widget following Single Responsibility Principle
+class ClockApp extends StatelessWidget {
+  const ClockApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        backgroundColor: Colors.grey,
-        body: Center(
-          child: Clock(),
-        ),
-      ),
+    return const MaterialApp(
+      title: 'Analog Wall Clock',
+      debugShowCheckedModeBanner: false,
+      home: ClockScreen(),
     );
   }
 }
 
-class Clock extends StatefulWidget {
-  @override
-  _ClockState createState() => _ClockState();
-}
 
-class _ClockState extends State<Clock> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioCache _audioCache = AudioCache(prefix: 'assets/');
-  late Uri filePath;
-  late Timer _timer;
-  @override
-  void initState() {
-    super.initState();
 
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..repeat();
 
-    SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
-      // Preload the audio file
-      filePath = await _audioCache.load('tick.mp3');
-    });
 
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _playTickSound();
-    });
-  }
+/// old code
+/// 
+/// 
+// import 'dart:async';
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    _audioPlayer.dispose();
-    _timer.cancel();
-    super.dispose();
-  }
+// import 'package:audioplayers/audioplayers.dart';
+// import 'package:flutter/material.dart';
+// import 'package:flutter/scheduler.dart';
+// import 'dart:math';
 
-  Future<void> _playTickSound() async {
-    try {
-      await _audioPlayer.stop(); // Ensure the player is stopped before playing
-      await _audioPlayer.play(DeviceFileSource(filePath.path),
-          mode: PlayerMode.lowLatency);
-    } catch (e) {
-      debugPrint('Error playing tick sound: $e');
-    }
-  }
+// void main() {
+//   runApp(const MainApp());
+// }
 
-  @override
-  Widget build(BuildContext context) {
-    final h = MediaQuery.of(context).size.height;
-    final w = MediaQuery.of(context).size.width;
-    final double markerRadius = 0.19 * h; // Radius of the circle
-    final double whiteCircleRadius = 0.22 * h; // Radius of the markers
-    final double greyCircleRadius = 0.34 * h; // Center X of the circle
-    final double centerX = 0.439 * w; // Center X of the circle
-    final double centerY = 0.20 * h; // Center Y of the circle
+// class MainApp extends StatelessWidget {
+//   const MainApp({super.key});
 
-    List<Widget> dotMarkers = [];
-    for (int i = 0; i < 60; i++) {
-      double angle =
-          (i * 6 - 90) * pi / 180; // Adjust angle to start from 12 o'clock
+//   @override
+//   Widget build(BuildContext context) {
+//     return MaterialApp(
+//       home: Scaffold(
+//         backgroundColor: Colors.grey,
+//         body: Center(
+//           child: Clock(),
+//         ),
+//       ),
+//     );
+//   }
+// }
 
-      double x = centerX + markerRadius * cos(angle); // Adjust for marker width
-      double y =
-          centerY + markerRadius * sin(angle); // Adjust for marker height
-      String figure = i % 5 == 0 ? "$i" : "";
-      dotMarkers.add(Positioned(
-        left: x,
-        top: y,
-        child: Transform.rotate(
-          angle: angle + pi / 2, // Rotate by 90 degrees plus the angle
-          child: Column(
-            children: [
-              Container(
-                height: i % 5 == 0 ? 10 : 5, // Larger markers for hours
-                width: 2, // Same width for all markers
-                decoration: BoxDecoration(
-                  color: Colors.orange,
-                  shape: i % 5 == 0 ? BoxShape.rectangle : BoxShape.circle,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                figure,
-                style: const TextStyle(fontSize: 12),
-              )
-            ],
-          ),
-        ),
-      ));
-    }
+// class Clock extends StatefulWidget {
+//   @override
+//   _ClockState createState() => _ClockState();
+// }
 
-    return Stack(
-      children: [
-        Center(
-          child: CircleAvatar(
-            radius: whiteCircleRadius,
-            backgroundColor: Colors.white,
-            child: Stack(
-              children: [...dotMarkers],
-            ),
-          ),
-        ),
-        Center(
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return CustomPaint(
-                painter: ClockPainter(),
-                size: Size(greyCircleRadius, greyCircleRadius),
-              );
-            },
-          ),
-        ),
-        Align(
-          alignment: Alignment.bottomCenter,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 40),
-            child: DigitalClock(),
-          ),
-        ),
-      ],
-    );
-  }
-}
+// class _ClockState extends State<Clock>
+//     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+//   late AnimationController _controller;
+//   final AudioPlayer _audioPlayer = AudioPlayer();
+//   final AudioCache _audioCache = AudioCache(prefix: 'assets/');
+//   late Uri filePath;
+//   Timer? _timer; // Make timer nullable
+//   bool _isAppInForeground = true;
 
-class ClockPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = min(size.width / 2, size.height / 2);
+//   @override
+//   void initState() {
+//     super.initState();
+//     WidgetsBinding.instance.addObserver(this);
 
-    final dateTime = DateTime.now();
+//     _controller = AnimationController(
+//       vsync: this,
+//       duration: const Duration(seconds: 1),
+//     )..repeat();
 
-    // Draw clock face
-    final facePaint = Paint()
-      ..shader = RadialGradient(
-        colors: [Colors.white, Colors.grey.shade300],
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-    canvas.drawCircle(center, radius, facePaint);
+//     SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
+//       // Preload the audio file
+//       filePath = await _audioCache.load('tick.mp3');
+//     });
 
-    // Draw hour hand
-    final hourHandPaint = Paint()
-      ..color = Colors.black
-      ..strokeWidth = 8
-      ..strokeCap = StrokeCap.round;
-    final hourHandX = center.dx +
-        radius *
-            0.5 *
-            cos((dateTime.hour * 30 + dateTime.minute * 0.5) * pi / 180 -
-                pi / 2);
-    final hourHandY = center.dy +
-        radius *
-            0.5 *
-            sin((dateTime.hour * 30 + dateTime.minute * 0.5) * pi / 180 -
-                pi / 2);
-    canvas.drawLine(center, Offset(hourHandX, hourHandY), hourHandPaint);
+//     _startTicking();
+//   }
 
-    // Draw minute hand
-    final minuteHandPaint = Paint()
-      ..color = Colors.black
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round;
-    final minuteHandX =
-        center.dx + radius * 0.7 * cos(dateTime.minute * 6 * pi / 180 - pi / 2);
-    final minuteHandY =
-        center.dy + radius * 0.7 * sin(dateTime.minute * 6 * pi / 180 - pi / 2);
-    canvas.drawLine(center, Offset(minuteHandX, minuteHandY), minuteHandPaint);
+//   @override
+//   void dispose() {
+//     WidgetsBinding.instance.removeObserver(this);
+//     _controller.dispose();
+//     _audioPlayer.dispose();
+//     _timer?.cancel(); // Use null-aware operator
+//     super.dispose();
+//   }
 
-    // Draw second hand
-    final secondHandPaint = Paint()
-      ..color = Colors.red
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-    final secondHandX =
-        center.dx + radius * 0.9 * cos(dateTime.second * 6 * pi / 180 - pi / 2);
-    final secondHandY =
-        center.dy + radius * 0.9 * sin(dateTime.second * 6 * pi / 180 - pi / 2);
-    canvas.drawLine(center, Offset(secondHandX, secondHandY), secondHandPaint);
+//   @override
+//   void didChangeAppLifecycleState(AppLifecycleState state) {
+//     super.didChangeAppLifecycleState(state);
 
-    // Draw center point
-    final centerPointPaint = Paint()..color = Colors.black;
-    canvas.drawCircle(center, 8, centerPointPaint);
-  }
+//     switch (state) {
+//       case AppLifecycleState.resumed:
+//         // App is in foreground and active
+//         _isAppInForeground = true;
+//         _startTicking();
+//         break;
+//       case AppLifecycleState.paused:
+//       case AppLifecycleState.inactive:
+//       case AppLifecycleState.detached:
+//         // App is in background, paused, or inactive
+//         _isAppInForeground = false;
+//         _stopTicking();
+//         break;
+//       case AppLifecycleState.hidden:
+//         // App is hidden but still running
+//         _isAppInForeground = false;
+//         _stopTicking();
+//         break;
+//     }
+//   }
 
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) {
-    return true;
-  }
-}
+//   void _startTicking() {
+//     if (_isAppInForeground) {
+//       _timer?.cancel(); // Use null-aware operator
+//       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+//         if (_isAppInForeground) {
+//           _playTickSound();
+//         }
+//       });
+//     }
+//   }
 
-class DigitalClock extends StatefulWidget {
-  @override
-  _DigitalClockState createState() => _DigitalClockState();
-}
+//   void _stopTicking() {
+//     _timer?.cancel(); // Use null-aware operator
+//   }
 
-class _DigitalClockState extends State<DigitalClock>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+//   Future<void> _playTickSound() async {
+//     try {
+//       await _audioPlayer.stop(); // Ensure the player is stopped before playing
+//       await _audioPlayer.play(DeviceFileSource(filePath.path),
+//           mode: PlayerMode.lowLatency);
+//     } catch (e) {
+//       debugPrint('Error playing tick sound: $e');
+//     }
+//   }
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..repeat();
-  }
+//   @override
+//   Widget build(BuildContext context) {
+//     final screenSize = MediaQuery.of(context).size;
+//     final clockSize = min(screenSize.width, screenSize.height) * 0.8;
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+//     return Stack(
+//       children: [
+//         Center(
+//           child: AnimatedBuilder(
+//             animation: _controller,
+//             builder: (context, child) {
+//               return CustomPaint(
+//                 painter: ClockPainter(),
+//                 size: Size(clockSize, clockSize),
+//               );
+//             },
+//           ),
+//         ),
+//         Align(
+//           alignment: Alignment.bottomCenter,
+//           child: Padding(
+//             padding: const EdgeInsets.only(bottom: 40),
+//             child: DigitalClock(),
+//           ),
+//         ),
+//       ],
+//     );
+//   }
+// }
 
-  String _formatTime(DateTime dateTime) {
-    final hour = dateTime.hour;
-    final minute = dateTime.minute;
-    final second = dateTime.second;
-    final period = hour >= 12 ? 'PM' : 'am';
-    final formattedHour = hour % 12 == 0 ? 12 : hour % 12;
-    return "${formattedHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}:${second.toString().padLeft(2, '0')} $period";
-  }
+// class ClockPainter extends CustomPainter {
+//   @override
+//   void paint(Canvas canvas, Size size) {
+//     final center = Offset(size.width / 2, size.height / 2);
+//     final radius = min(size.width / 1.8, size.height);
+//     final dateTime = DateTime.now();
 
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final dateTime = DateTime.now();
-        final timeString = _formatTime(dateTime);
-        final timeParts = timeString.split(' ');
-        final time = timeParts[0];
-        final period = timeParts[1];
+//     // Draw outer white circle (clock background)
+//     final backgroundPaint = Paint()
+//       ..color = Colors.white
+//       ..style = PaintingStyle.fill;
+//     canvas.drawCircle(center, radius, backgroundPaint);
 
-        final timeComponents = time.split(':');
-        final hour = timeComponents[0];
-        final minute = timeComponents[1];
-        final second = timeComponents[2];
+//     // Draw subtle shadow/border
+//     final borderPaint = Paint()
+//       ..color = Colors.grey.shade300
+//       ..style = PaintingStyle.stroke
+//       ..strokeWidth = 2;
+//     canvas.drawCircle(center, radius, borderPaint);
 
-        return RichText(
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: hour,
-                style: const TextStyle(
-                  fontSize: 50,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const TextSpan(
-                text: ':',
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.normal,
-                  color: Colors.white,
-                ),
-              ),
-              TextSpan(
-                text: minute,
-                style: const TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              const TextSpan(
-                text: ':',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.normal,
-                  color: Colors.white,
-                ),
-              ),
-              TextSpan(
-                text: second,
-                style: const TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.normal,
-                  color: Colors.white,
-                ),
-              ),
-              TextSpan(
-                text: ' $period',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.normal,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
+//     // Draw inner clock face (grey gradient)
+//     final innerRadius = radius * 0.7;
+//     final facePaint = Paint()
+//       ..shader = RadialGradient(
+//         colors: [Colors.white, Colors.grey.shade300],
+//       ).createShader(Rect.fromCircle(center: center, radius: innerRadius));
+//     canvas.drawCircle(center, innerRadius, facePaint);
+
+//     // Draw hour markers and numbers
+//     _drawMarkers(canvas, center, radius);
+
+//     // Draw clock hands
+//     _drawHands(canvas, center, innerRadius, dateTime);
+
+//     // Draw center point
+//     final centerPointPaint = Paint()..color = Colors.black;
+//     canvas.drawCircle(center, 8, centerPointPaint);
+//   }
+
+//   void _drawMarkers(Canvas canvas, Offset center, double radius) {
+//     final markerRadius = radius * 0.92; // Distance from center to markers
+
+//     // Paint for hour markers (thick orange lines)
+//     final hourMarkerPaint = Paint()
+//       ..color = Colors.orange
+//       ..strokeWidth = 1.5
+//       ..strokeCap = StrokeCap.round;
+
+//     // Paint for minute markers (small orange dots)
+//     final minuteMarkerPaint = Paint()
+//       ..color = Colors.orange
+//       ..style = PaintingStyle.fill;
+
+//     // Paint for hour numbers
+//     final textPainter = TextPainter(
+//       textAlign: TextAlign.center,
+//       textDirection: TextDirection.ltr,
+//     );
+
+//     for (int i = 0; i < 60; i++) {
+//       final angle = (i * 6 - 90) * pi / 180; // Start from 12 o'clock
+//       final isHourMarker = i % 5 == 0;
+
+//       if (isHourMarker) {
+//         // Draw hour markers (lines)
+//         final outerPoint = Offset(
+//           center.dx + markerRadius * cos(angle),
+//           center.dy + markerRadius * sin(angle),
+//         );
+//         final innerPoint = Offset(
+//           center.dx + (markerRadius - 8) * cos(angle),
+//           center.dy + (markerRadius - 8) * sin(angle),
+//         );
+//         canvas.drawLine(outerPoint, innerPoint, hourMarkerPaint);
+
+//         // Draw hour numbers
+//         if (i > 0) {
+//           // Skip 0, show 12 instead
+//           final numberRadius = markerRadius - 25;
+//           final numberX = center.dx + numberRadius * cos(angle);
+//           final numberY = center.dy + numberRadius * sin(angle);
+
+//           textPainter.text = TextSpan(
+//             text: i == 0 ? '12' : '$i',
+//             style: TextStyle(
+//               color: Colors.black87,
+//               fontSize: radius * 0.05,
+//               fontWeight: FontWeight.w600,
+//             ),
+//           );
+//           textPainter.layout();
+
+//           // Center the text
+//           final textOffset = Offset(
+//             numberX - textPainter.width / 2,
+//             numberY - textPainter.height / 2,
+//           );
+//           textPainter.paint(canvas, textOffset);
+//         }
+//       } else {
+//         // Draw minute markers (small dots)
+//         final dotCenter = Offset(
+//           center.dx + markerRadius * cos(angle),
+//           center.dy + markerRadius * sin(angle),
+//         );
+//         canvas.drawCircle(dotCenter, 2, minuteMarkerPaint);
+//       }
+//     }
+
+//     // Draw "12" at the top
+//     final numberRadius = markerRadius - 25;
+//     final numberX = center.dx;
+//     final numberY = center.dy - numberRadius;
+
+//     textPainter.text = TextSpan(
+//       text: '12',
+//       style: TextStyle(
+//         color: Colors.black87,
+//         fontSize: radius * 0.08,
+//         fontWeight: FontWeight.w600,
+//       ),
+//     );
+//     textPainter.layout();
+
+//     final textOffset = Offset(
+//       numberX - textPainter.width / 2,
+//       numberY - textPainter.height / 2,
+//     );
+//     textPainter.paint(canvas, textOffset);
+//   }
+
+//   void _drawHands(
+//       Canvas canvas, Offset center, double radius, DateTime dateTime) {
+//     // Draw hour hand
+//     final hourHandPaint = Paint()
+//       ..color = Colors.black
+//       ..strokeWidth = 8
+//       ..strokeCap = StrokeCap.round;
+//     final hourAngle =
+//         (dateTime.hour % 12 * 30 + dateTime.minute * 0.5) * pi / 180 - pi / 2;
+//     final hourHandEnd = Offset(
+//       center.dx + radius * 0.5 * cos(hourAngle),
+//       center.dy + radius * 0.5 * sin(hourAngle),
+//     );
+//     canvas.drawLine(center, hourHandEnd, hourHandPaint);
+
+//     // Draw minute hand
+//     final minuteHandPaint = Paint()
+//       ..color = Colors.black
+//       ..strokeWidth = 4
+//       ..strokeCap = StrokeCap.round;
+//     final minuteAngle = dateTime.minute * 6 * pi / 180 - pi / 2;
+//     final minuteHandEnd = Offset(
+//       center.dx + radius * 0.7 * cos(minuteAngle),
+//       center.dy + radius * 0.7 * sin(minuteAngle),
+//     );
+//     canvas.drawLine(center, minuteHandEnd, minuteHandPaint);
+
+//     // Draw second hand
+//     final secondHandPaint = Paint()
+//       ..color = Colors.red
+//       ..strokeWidth = 2
+//       ..strokeCap = StrokeCap.round;
+//     final secondAngle = dateTime.second * 6 * pi / 180 - pi / 2;
+//     final secondHandEnd = Offset(
+//       center.dx + radius * 0.9 * cos(secondAngle),
+//       center.dy + radius * 0.9 * sin(secondAngle),
+//     );
+//     canvas.drawLine(center, secondHandEnd, secondHandPaint);
+//   }
+
+//   @override
+//   bool shouldRepaint(CustomPainter oldDelegate) {
+//     return true;
+//   }
+// }
+
+// class DigitalClock extends StatefulWidget {
+//   @override
+//   _DigitalClockState createState() => _DigitalClockState();
+// }
+
+// class _DigitalClockState extends State<DigitalClock>
+//     with SingleTickerProviderStateMixin {
+//   late AnimationController _controller;
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     _controller = AnimationController(
+//       vsync: this,
+//       duration: const Duration(seconds: 1),
+//     )..repeat();
+//   }
+
+//   @override
+//   void dispose() {
+//     _controller.dispose();
+//     super.dispose();
+//   }
+
+//   String _formatTime(DateTime dateTime) {
+//     final hour = dateTime.hour;
+//     final minute = dateTime.minute;
+//     final second = dateTime.second;
+//     final period = hour >= 12 ? 'PM' : 'am';
+//     final formattedHour = hour % 12 == 0 ? 12 : hour % 12;
+//     return "${formattedHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}:${second.toString().padLeft(2, '0')} $period";
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return AnimatedBuilder(
+//       animation: _controller,
+//       builder: (context, child) {
+//         final dateTime = DateTime.now();
+//         final timeString = _formatTime(dateTime);
+//         final timeParts = timeString.split(' ');
+//         final time = timeParts[0];
+//         final period = timeParts[1];
+
+//         final timeComponents = time.split(':');
+//         final hour = timeComponents[0];
+//         final minute = timeComponents[1];
+//         final second = timeComponents[2];
+
+//         return RichText(
+//           text: TextSpan(
+//             children: [
+//               TextSpan(
+//                 text: hour,
+//                 style: const TextStyle(
+//                   fontSize: 50,
+//                   fontWeight: FontWeight.bold,
+//                   color: Colors.white,
+//                 ),
+//               ),
+//               const TextSpan(
+//                 text: ':',
+//                 style: TextStyle(
+//                   fontSize: 40,
+//                   fontWeight: FontWeight.normal,
+//                   color: Colors.white,
+//                 ),
+//               ),
+//               TextSpan(
+//                 text: minute,
+//                 style: const TextStyle(
+//                   fontSize: 40,
+//                   fontWeight: FontWeight.w600,
+//                   color: Colors.white,
+//                 ),
+//               ),
+//               const TextSpan(
+//                 text: ':',
+//                 style: TextStyle(
+//                   fontSize: 30,
+//                   fontWeight: FontWeight.normal,
+//                   color: Colors.white,
+//                 ),
+//               ),
+//               TextSpan(
+//                 text: second,
+//                 style: const TextStyle(
+//                   fontSize: 30,
+//                   fontWeight: FontWeight.normal,
+//                   color: Colors.white,
+//                 ),
+//               ),
+//               TextSpan(
+//                 text: ' $period',
+//                 style: const TextStyle(
+//                   fontSize: 20,
+//                   fontWeight: FontWeight.normal,
+//                   color: Colors.white,
+//                 ),
+//               ),
+//             ],
+//           ),
+//         );
+//       },
+//     );
+//   }
+// }
